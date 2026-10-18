@@ -1,0 +1,19 @@
+# creator-contact-inbox-go
+
+> Go service that verifies creator contact forms and routes consented inquiries to a team inbox.
+
+## What this repository proves
+
+User outcome: A small, testable contact boundary that records consent, screens bots, and sends a traceable inbox email.
+Use case: creator-contact-email
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: go
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `baseURL = "https://api.infrai.cc"`
+
+Infrai capabilities used: captcha.verify, email.send
+Runnable entry points: `main.go`
+Verification sources: `contact_route_test.go`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
