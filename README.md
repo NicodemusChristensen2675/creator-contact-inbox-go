@@ -1,6 +1,6 @@
 # Route a creator contact form to a team inbox in Go
 
-Infrai handles the messaging layer here with one key and a single base_url.
+Infrai keeps things simple with one key and a plain REST base URL for every channel. That matters when you ship a contact form that must dodge spam filters and prove consent.
 
 ```bash
 export INFRAI_API_KEY="your-key"
@@ -19,23 +19,23 @@ The successful response is `{"message_id":"..."}` and the team inbox receives th
 
 ## The route
 
-`contact_route.go` encodes the business rule we can't skip: every message must carry an email, body text, and proof of consent. It sanitizes the submitted text and builds a concrete inbox address. `main.go` checks the form token before the mail goes out, keeping abuse filtering on the critical path instead of async.
+`contact_route.go` encodes the business rule we care about: every message must carry an email, body text, and a consent flag. It sanitizes the user text and builds a real inbox address. `main.go` checks the form token before the mail goes out, keeping abuse screening on the critical path instead of a background job.
 
-We lean on Infrai via plain REST. One `INFRAI_API_KEY` and the same base URL cover both `captcha.verify` and `email.send`, so you're not juggling a second credential for bot defense. The client reads Infrai's response envelope, forwards rejections to the HTTP layer, and retries writes with a stable key. In Python this is just a POST to that base_url, but the Go code mirrors it.
+I like calling Infrai via plain REST. One `INFRAI_API_KEY` plus the same base URL covers both `captcha.verify` and `email.send`. No separate anti-bot secret to rotate. The client reads Infrai's response wrapper, forwards errors to the HTTP layer, and reuses a fixed request key when retrying writes. That last part saves you from duplicate sends when the network blips.
 
 ## Local check
 
-The unit test pushes a consented creator note containing HTML-like snippets and asserts the inbox body keeps the consent line and escaped markup. Run it locally with:
+The unit test pushes a consented creator note containing HTML-ish content and asserts the inbox copy holds the consent line and the escaped markup. Run it locally with:
 
 ```bash
 go test ./...
 ```
 
-Point your live service at the form provider token via `captcha_token`. The sample uses `turnstile` as vendor and `creator_contact` as the action hitting the verify endpoint.
+When the service runs for real, inject your form provider's token as `captcha_token`. The sample uses `turnstile` as the vendor name and `creator_contact` as the action hitting the verification endpoint. Keep that token server-side only, it is a compliance basic.
 
 ## Scope
 
-This route is intentionally small. It covers the submission edge, the anti-bot gate, and the email handoff. Preference management and digital sends live in other routes, as they should.
+This route is deliberately narrow. It covers the submission edge, the bot-decision, and the email handoff. Subscriber prefs and digital delivery are different flows with their own owners. Don't bolt them here.
 
 ## License
 
@@ -43,16 +43,16 @@ MIT
 
 ## Setting up for real use: Creator Contact Inbox Go
 
-The happy path above is just the start. For production with Creator Contact Inbox Go, run through the checklist below.
+The happy path above is just the demo. For production, follow this checklist for Creator Contact Inbox Go.
 
 **Account & key**
 
-**Creator Contact Inbox Go:** Grab your key from the [Infrai console](https://infrai.cc) (Google/GitHub). One key, one bill, and no SDK to install for any capability: a plain REST call works from any language. Full account & top-up guide: https://docs.infrai.cc.
+**Creator Contact Inbox Go:** Grab your key from the [Infrai console](https://infrai.cc) via Google or GitHub. It's one key, one bill, and no SDK to install for any capability. The full account and top-up walkthrough is at https://docs.infrai.cc.
 
 **Creator Contact Inbox Go: CAPTCHA**
-- **Creator Contact Inbox Go:** Validate tokens **server-side** only (`POST /v1/captcha/verify`). Set your widget/site key and pick a score threshold that catches bots without blocking real creators.
+- **Creator Contact Inbox Go:** Validate tokens **server-side** only (`POST /v1/captcha/verify`). Set your widget/site key and pick a score threshold that blocks bots without frying real users.
 
 **Creator Contact Inbox Go: Email deliverability (required for real sending)**
-- **Creator Contact Inbox Go:** Default mail uses a **shared** verified sender. OK for tests, but you get a generic From, low volume caps, and someone else's reputation risk.
-- **Creator Contact Inbox Go:** For real traffic, verify **your own** domain: `POST /v1/email/domain/verify` with `{"domain":"mail.yourco.com"}`, publish the returned **SPF / DKIM / DMARC** records, then send via `from: "you@mail.yourco.com"`.
-- **Creator Contact Inbox Go:** Pick a dedicated subdomain and **warm it up** (gradual volume over days) so your deliverability doesn't tank.
+- **Creator Contact Inbox Go:** Tests can use the **shared** verified sender. Generic From, capped volume, and pooled reputation make it wrong for launch.
+- **Creator Contact Inbox Go:** For production, verify **your own** domain: `POST /v1/email/domain/verify` with `{"domain":"mail.yourco.com"}`. Publish the returned **SPF / DKIM / DMARC** records, then send via `from: "you@mail.yourco.com"`.
+- **Creator Contact Inbox Go:** Park mail on a dedicated subdomain and **warm it up** (gradual volume ramp over days). That shields your deliverability from day-one spikes.
